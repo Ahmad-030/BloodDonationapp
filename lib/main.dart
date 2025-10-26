@@ -4,6 +4,7 @@ import 'package:blooddonation/theme/AppTheme_data.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:device_preview/device_preview.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -15,9 +16,12 @@ void main() async {
   );
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => UserProvider(),
-      child: BloodDonationApp(),
+    DevicePreview(
+      enabled: true,
+      builder: (context) => ChangeNotifierProvider(
+        create: (_) => UserProvider(),
+        child: BloodDonationApp(),
+      ),
     ),
   );
 }
@@ -30,6 +34,9 @@ class BloodDonationApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: SplashScreen(),
+      useInheritedMediaQuery: true,
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
     );
   }
 }

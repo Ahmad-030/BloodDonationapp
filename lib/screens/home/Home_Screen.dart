@@ -1,3 +1,4 @@
+import 'package:blooddonation/screens/Emergency/Emergency_hospital.dart';
 import 'package:blooddonation/screens/chat/ChatScreenList.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -714,66 +715,88 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+
   Widget _buildEmergencySection() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Color(0xFFFF1744).withOpacity(0.3), width: 2),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0xFFFF1744).withOpacity(0.15),
-            blurRadius: 16,
-            offset: Offset(0, 8),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmergencyHospitalsMapScreen(),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFFFF1744), Color(0xFFD50000)],
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Color(0xFFFF1744).withOpacity(0.3),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0xFFFF1744).withOpacity(0.15),
+              blurRadius: 16,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFFF1744), Color(0xFFD50000)],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0xFFFF1744).withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: Offset(0, 6),
+                  ),
+                ],
               ),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0xFFFF1744).withOpacity(0.4),
-                  blurRadius: 12,
-                  offset: Offset(0, 6),
-                ),
-              ],
+              child: Icon(
+                Icons.emergency_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
             ),
-            child: Icon(Icons.emergency_rounded, color: Colors.white, size: 28),
-          ),
-          SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Emergency Help',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textDark,
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Emergency Help',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
                   ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Need urgent blood? Get immediate assistance',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.textLight,
+                  SizedBox(height: 4),
+                  Text(
+                    'Find nearest hospitals with blood banks',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textLight,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFFFF1744), size: 20),
-        ],
+            Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Color(0xFFFF1744),
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }
