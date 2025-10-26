@@ -25,26 +25,31 @@ class ChatService {
     required Map<String, dynamic> user1Details,
     required Map<String, dynamic> user2Details,
   }) async {
-    final chatDoc = await _firestore
-        .collection(AppConstants.chatsCollection)
-        .doc(chatId)
-        .get();
-
-    if (!chatDoc.exists) {
-      await _firestore
+    try {
+      final chatDoc = await _firestore
           .collection(AppConstants.chatsCollection)
           .doc(chatId)
-          .set({
-        'chatId': chatId,
-        'participants': [userId1, userId2],
-        'participantDetails': {
-          userId1: user1Details,
-          userId2: user2Details,
-        },
-        'lastMessage': '',
-        'lastMessageTime': FieldValue.serverTimestamp(),
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+          .get();
+
+      if (!chatDoc.exists) {
+        await _firestore
+            .collection(AppConstants.chatsCollection)
+            .doc(chatId)
+            .set({
+          'chatId': chatId,
+          'participants': [userId1, userId2],
+          'participantDetails': {
+            userId1: user1Details,
+            userId2: user2Details,
+          },
+          'lastMessage': '',
+          'lastMessageTime': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      print('Error creating chat room: $e');
+      rethrow;
     }
   }
 
@@ -55,27 +60,32 @@ class ChatService {
     required String senderName,
     required String message,
   }) async {
-    // Add message to subcollection
-    await _firestore
-        .collection(AppConstants.chatsCollection)
-        .doc(chatId)
-        .collection(AppConstants.messagesCollection)
-        .add({
-      'senderId': senderId,
-      'senderName': senderName,
-      'text': message,
-      'timestamp': FieldValue.serverTimestamp(),
-      'read': false,
-    });
+    try {
+      // Add message to subcollection
+      await _firestore
+          .collection(AppConstants.chatsCollection)
+          .doc(chatId)
+          .collection(AppConstants.messagesCollection)
+          .add({
+        'senderId': senderId,
+        'senderName': senderName,
+        'text': message,
+        'timestamp': FieldValue.serverTimestamp(),
+        'read': false,
+      });
 
-    // Update last message in chat document
-    await _firestore
-        .collection(AppConstants.chatsCollection)
-        .doc(chatId)
-        .update({
-      'lastMessage': message,
-      'lastMessageTime': FieldValue.serverTimestamp(),
-    });
+      // Update last message in chat document
+      await _firestore
+          .collection(AppConstants.chatsCollection)
+          .doc(chatId)
+          .update({
+        'lastMessage': message,
+        'lastMessageTime': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error sending message: $e');
+      rethrow;
+    }
   }
 
   // Get messages stream for a chat
@@ -99,16 +109,69 @@ class ChatService {
 
   // Mark messages as read
   Future<void> markMessagesAsRead(String chatId, String userId) async {
-    final messages = await _firestore
-        .collection(AppConstants.chatsCollection)
-        .doc(chatId)
-        .collection(AppConstants.messagesCollection)
-        .where('senderId', isNotEqualTo: userId)
-        .where('read', isEqualTo: false)
-        .get();
+    try {
+      final messages = await _firestore
+          .collection(AppConstants.chatsCollection)
+          .doc(chatId)
+          .collection(AppConstants.messagesCollection)
+          .where('senderId', isNotEqualTo: userId)
+          .where('read', isEqualTo: false)
+          .get();
 
-    for (var doc in messages.docs) {
-      await doc.reference.update({'read': true});
+      // Update all unread messages
+      final batch = _firestore.batch();
+      for (var doc in messages.docs) {
+        batch.update(doc.reference, {'read': true});
+      }
+      await batch.commit();
+    } catch (e) {
+      print('Error marking messages as read: $e');
+      // Don't rethrow - this is not critical
+    }
+  }
+
+  // Delete a chat (optional - for future use)
+  Future<void> deleteChat(String chatId) async {
+    try {
+      // Delete all messages first
+      final messages = await _firestore
+          .collection(AppConstants.chatsCollection)
+          .doc(chatId)
+          .collection(AppConstants.messagesCollection)
+          .get();
+
+      final batch = _firestore.batch();
+      for (var doc in messages.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
+      // Delete chat document
+      await _firestore
+          .collection(AppConstants.chatsCollection)
+          .doc(chatId)
+          .delete();
+    } catch (e) {
+      print('Error deleting chat: $e');
+      rethrow;
+    }
+  }
+
+  // Get unread message count for a user in a specific chat
+  Future<int> getUnreadMessageCount(String chatId, String userId) async {
+    try {
+      final unreadMessages = await _firestore
+          .collection(AppConstants.chatsCollection)
+          .doc(chatId)
+          .collection(AppConstants.messagesCollection)
+          .where('senderId', isNotEqualTo: userId)
+          .where('read', isEqualTo: false)
+          .get();
+
+      return unreadMessages.docs.length;
+    } catch (e) {
+      print('Error getting unread count: $e');
+      return 0;
     }
   }
 }

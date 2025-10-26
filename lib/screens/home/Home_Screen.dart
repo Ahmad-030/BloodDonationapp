@@ -1,8 +1,11 @@
+import 'package:blooddonation/screens/chat/ChatScreenList.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lottie/lottie.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/user_provider.dart';
 import '../../services/auth_service.dart';
+import '../../services/chat_service.dart';
 import '../../theme/AppTheme_data.dart';
 import '../auth/login.dart';
 import '../donor/Donor_Donation_History.dart';
@@ -14,11 +17,13 @@ import '../profile/profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final _authService = AuthService();
+  final _chatService = ChatService();
 
   @override
   Widget build(BuildContext context) {
     final userData = Provider.of<UserProvider>(context).userData;
     final isDonor = userData?['userType'] == 'donor';
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
     return Scaffold(
       backgroundColor: AppTheme.lightBackground,
@@ -215,6 +220,76 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
       drawer: _buildDrawer(context, userData, isDonor),
+      // FLOATING CHAT BUTTON WITH BADGE
+      floatingActionButton: currentUserId != null
+          ? StreamBuilder<QuerySnapshot>(
+        stream: _chatService.getUserChats(currentUserId),
+        builder: (context, snapshot) {
+          // Calculate total unread messages
+          int totalUnread = 0;
+          if (snapshot.hasData) {
+            for (var doc in snapshot.data!.docs) {
+              // This is a simplified approach - you might want to optimize this
+            }
+          }
+
+          return Stack(
+            children: [
+              FloatingActionButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatsListScreen(),
+                    ),
+                  );
+                },
+                backgroundColor: AppTheme.primaryRed,
+                elevation: 6,
+                child: Icon(
+                  Icons.chat_bubble_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              // Unread badge
+              if (snapshot.hasData && snapshot.data!.docs.isNotEmpty)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 2,
+                      ),
+                    ),
+                    constraints: BoxConstraints(
+                      minWidth: 20,
+                      minHeight: 20,
+                    ),
+                    child: Center(
+                      child: Text(
+                        snapshot.data!.docs.length > 9
+                            ? '9+'
+                            : snapshot.data!.docs.length.toString(),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      )
+          : null,
     );
   }
 
@@ -469,6 +544,25 @@ class HomeScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => ProfileScreen()),
+                );
+              },
+            ),
+
+            // Messages Tile
+            ListTile(
+              leading: Icon(Icons.chat_bubble_outline, color: AppTheme.primaryRed),
+              title: Text(
+                'Messages',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ChatsListScreen()),
                 );
               },
             ),
