@@ -1,17 +1,16 @@
-// ============================================================================
-// FILE: lib/screens/auth/login_screen.dart
-// Login screen with email/password authentication
-// ============================================================================
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:lottie/lottie.dart';
 import '../../services/auth_service.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/AppTheme_data.dart';
-import '../../widgets/Blood_drop.dart';
-import '../../widgets/Custom_textfield.dart';
 import '../home/home_screen.dart';
 import 'Registration.dart';
+import 'dart:async';
+
+// ============================================================================
+// LOGIN SCREEN - WHITE BACKGROUND WITH RED TEXT
+// ============================================================================
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -23,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   Future<void> _login() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -33,20 +33,16 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Sign in with Firebase
       final userCredential = await _authService.signIn(
         _emailController.text,
         _passwordController.text,
       );
 
-      // Fetch user data
       final userData = await _authService.getUserData(userCredential.user!.uid);
 
       if (userData != null) {
-        // Set user data in provider
         Provider.of<UserProvider>(context, listen: false).setUser(userData);
 
-        // Navigate to home
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => HomeScreen()),
@@ -61,7 +57,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
     );
   }
 
@@ -69,73 +70,201 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(gradient: AppTheme.primaryGradient),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(24),
+        color: Colors.white,
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  BloodDropIcon(size: 80),
+                  // Logo/Lottie Animation
+                  SizedBox(
+                    height: 130,
+                    child: Lottie.asset(
+                      'assets/animations/bloodd.json',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                   SizedBox(height: 20),
+
+                  // Welcome Text
                   Text(
                     'Welcome Back',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: AppTheme.primaryRed,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  SizedBox(height: 40),
-                  WhiteTextField(
-                    controller: _emailController,
-                    hint: 'Email',
-                    icon: Icons.email,
-                  ),
-                  SizedBox(height: 16),
-                  WhiteTextField(
-                    controller: _passwordController,
-                    hint: 'Password',
-                    icon: Icons.lock,
-                    isPassword: true,
+                  SizedBox(height: 8),
+                  Text(
+                    'Sign in to continue saving lives',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.textLight,
+                    ),
                   ),
                   SizedBox(height: 32),
-                  _isLoading
-                      ? CircularProgressIndicator(color: Colors.white)
-                      : ElevatedButton(
-                    onPressed: _login,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppTheme.primaryRed,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 80,
-                        vertical: 16,
+
+                  // Email Field
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.primaryRed,
+                        width: 1.5,
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryRed.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _emailController,
+                      decoration: InputDecoration(
+                        hintText: 'Email Address',
+                        prefixIcon: Icon(Icons.email_outlined,
+                            color: AppTheme.primaryRed),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 16),
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      style: TextStyle(color: AppTheme.textDark),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+
+                  // Password Field
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppTheme.primaryRed,
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryRed.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        hintText: 'Password',
+                        prefixIcon: Icon(Icons.lock_outline,
+                            color: AppTheme.primaryRed),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: AppTheme.primaryRed,
+                          ),
+                          onPressed: () {
+                            setState(() =>
+                            _obscurePassword = !_obscurePassword);
+                          },
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 16),
+                        hintStyle: TextStyle(color: Colors.grey[400]),
+                      ),
+                      style: TextStyle(color: AppTheme.textDark),
+                    ),
+                  ),
+                  SizedBox(height: 24),
+
+                  // Login Button
+                  _isLoading
+                      ? Container(
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppTheme.lightRed,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            AppTheme.primaryRed),
                       ),
                     ),
-                    child: Text(
-                      'Login',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                  )
+                      : GestureDetector(
+                    onTap: _login,
+                    child: Container(
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryRed,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryRed.withOpacity(0.3),
+                            blurRadius: 12,
+                            offset: Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Sign In',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  SizedBox(height: 20),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => RegistrationScreen()),
-                      );
-                    },
-                    child: Text(
-                      "Don't have an account? Register",
-                      style: TextStyle(color: Colors.white),
-                    ),
+                  SizedBox(height: 18),
+
+                  // Sign Up Link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Don't have an account? ",
+                        style: TextStyle(
+                          color: AppTheme.textLight,
+                          fontSize: 13,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => RegistrationScreen()),
+                          );
+                        },
+                        child: Text(
+                          'Sign Up',
+                          style: TextStyle(
+                            color: AppTheme.primaryRed,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

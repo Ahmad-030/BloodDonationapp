@@ -1,8 +1,3 @@
-// ============================================================================
-// FILE: lib/screens/donor/donor_search_screen.dart
-// Search donors by blood type and city
-// ============================================================================
-
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
@@ -46,131 +41,328 @@ class _DonorSearchScreenState extends State<DonorSearchScreen> {
             .toList();
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error searching donors: $e')),
-      );
+      _showError('Error searching donors: $e');
     } finally {
       setState(() => _isSearching = false);
     }
   }
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Find Donors')),
-      body: Column(
-        children: [
-          Container(
-            padding: EdgeInsets.all(16),
-            color: AppTheme.lightRed,
-            child: Column(
+      backgroundColor: AppTheme.lightBackground,
+      appBar: AppBar(
+        title: Text('Find Donors'),
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Search Header
+            Container(
+              decoration: BoxDecoration(gradient: AppTheme.primaryGradient),
+              padding: EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Search for Donors',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Find available donors in your area',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  SizedBox(height: 24),
+
+                  // Blood Type Dropdown
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      value: _selectedBloodType,
+                      decoration: InputDecoration(
+                        labelText: 'Blood Type',
+                        prefixIcon: Icon(Icons.bloodtype, color: AppTheme.primaryRed),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(16),
+                      ),
+                      items: AppConstants.bloodTypesWithAll.map((type) {
+                        return DropdownMenuItem(
+                          value: type,
+                          child: Text(type),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() => _selectedBloodType = value!);
+                      },
+                    ),
+                  ),
+                  SizedBox(height: 12),
+
+                  // City TextField
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      controller: _cityController,
+                      decoration: InputDecoration(
+                        labelText: 'City (Optional)',
+                        prefixIcon: Icon(Icons.location_city, color: AppTheme.primaryRed),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(16),
+                        hintText: 'Enter city name',
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+
+                  // Search Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _searchDonors,
+                      icon: Icon(Icons.search),
+                      label: Text('Search Donors'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppTheme.primaryRed,
+                        padding: EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            SizedBox(height: 20),
+
+            // Results
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: _isSearching
+                  ? Center(
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: CircularProgressIndicator(
+                    color: AppTheme.primaryRed,
+                  ),
+                ),
+              )
+                  : _donors.isEmpty
+                  ? _buildEmptyState()
+                  : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Found ${_donors.length} donor(s)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: _donors.length,
+                    itemBuilder: (context, index) {
+                      final donor = _donors[index];
+                      return _buildDonorCard(donor, context);
+                    },
+                  ),
+                  SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 60, horizontal: 20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: AppTheme.lightRed.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.search_off,
+                size: 50,
+                color: AppTheme.primaryRed,
+              ),
+            ),
+            SizedBox(height: 20),
+            Text(
+              'No Donors Found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.textDark,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Try searching with different filters',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textLight,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDonorCard(Map<String, dynamic> donor, BuildContext context) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [AppTheme.cardShadow],
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                DropdownButtonFormField<String>(
-                  value: _selectedBloodType,
-                  decoration: InputDecoration(
-                    labelText: 'Blood Type',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+                // Blood Type Badge
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [AppTheme.elevatedShadow],
                   ),
-                  items: AppConstants.bloodTypesWithAll.map((type) {
-                    return DropdownMenuItem(value: type, child: Text(type));
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedBloodType = value!);
-                  },
-                ),
-                SizedBox(height: 12),
-                TextField(
-                  controller: _cityController,
-                  decoration: InputDecoration(
-                    labelText: 'City (Optional)',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                  child: Center(
+                    child: Text(
+                      donor['bloodType'] ?? 'N/A',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
                     ),
                   ),
                 ),
-                SizedBox(height: 12),
-                ElevatedButton.icon(
-                  onPressed: _searchDonors,
-                  icon: Icon(Icons.search),
-                  label: Text('Search Donors'),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                SizedBox(width: 16),
+                // Donor Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        donor['name'] ?? 'Unknown',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.location_on_outlined, size: 14, color: AppTheme.textLight),
+                          SizedBox(width: 4),
+                          Text(
+                            donor['city'] ?? 'N/A',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.phone_outlined, size: 14, color: AppTheme.textLight),
+                          SizedBox(width: 4),
+                          Text(
+                            donor['phone'] ?? 'N/A',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textLight,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          Expanded(
-            child: _isSearching
-                ? Center(child: CircularProgressIndicator())
-                : _donors.isEmpty
-                ? Center(
-              child: Text(
-                'No donors found.\nTry different filters.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-            )
-                : ListView.builder(
-              padding: EdgeInsets.all(16),
-              itemCount: _donors.length,
-              itemBuilder: (context, index) {
-                final donor = _donors[index];
-                return Card(
-                  margin: EdgeInsets.only(bottom: 12),
-                  elevation: 2,
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: AppTheme.primaryRed,
-                      child: Text(
-                        donor['bloodType'] ?? '',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+            SizedBox(height: 16),
+            // Chat Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(
+                        otherUserId: donor['uid'],
+                        otherUserName: donor['name'],
+                        otherUserBloodType: donor['bloodType'],
                       ),
                     ),
-                    title: Text(
-                      donor['name'] ?? 'Unknown',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      '${donor['city'] ?? ''}\n${donor['phone'] ?? ''}',
-                    ),
-                    isThreeLine: true,
-                    trailing: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen(
-                              otherUserId: donor['uid'],
-                              otherUserName: donor['name'],
-                              otherUserBloodType: donor['bloodType'],
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                      ),
-                      child: Text('Chat'),
-                    ),
+                  );
+                },
+                icon: Icon(Icons.chat_bubble_outline),
+                label: Text('Chat with Donor'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryRed,
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                );
-              },
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
