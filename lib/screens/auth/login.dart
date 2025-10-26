@@ -81,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Logo/Lottie Animation
                   SizedBox(
-                    height: 130,
+                    height: 200,
                     child: Lottie.asset(
                       'assets/animations/bloodd.json',
                       fit: BoxFit.contain,
