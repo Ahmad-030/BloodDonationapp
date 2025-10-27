@@ -125,7 +125,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     children: [
                       SizedBox(height: 8),
 
-                      // Welcome Text
                       ScaleTransition(
                         scale: _scaleAnimation,
                         child: Column(
