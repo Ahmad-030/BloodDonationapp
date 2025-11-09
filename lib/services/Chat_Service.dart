@@ -1,23 +1,23 @@
 // ============================================================================
-// FILE: lib/services/chat_service.dart
-// Firebase Chat Service - Handles unique 1-on-1 messaging
+// FILE: lib/services/chat_service.dart (FIXED)
 // ============================================================================
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/constants.dart';
+import 'notification_service.dart';
 
 class ChatService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
 
-  // Generate unique chat ID by sorting user IDs
-  // This ensures same chat room for both users
+  // Generate unique chat ID
   String generateChatId(String userId1, String userId2) {
     List<String> ids = [userId1, userId2];
-    ids.sort(); // Always same order
+    ids.sort();
     return "${ids[0]}_${ids[1]}";
   }
 
-  // Create chat room if it doesn't exist
+  // Create chat room
   Future<void> createChatRoom({
     required String chatId,
     required String userId1,
@@ -53,7 +53,7 @@ class ChatService {
     }
   }
 
-  // Send message
+  // Send message with notification
   Future<void> sendMessage({
     required String chatId,
     required String senderId,
@@ -74,7 +74,7 @@ class ChatService {
         'read': false,
       });
 
-      // Update last message in chat document
+      // Update last message
       await _firestore
           .collection(AppConstants.chatsCollection)
           .doc(chatId)
@@ -82,13 +82,72 @@ class ChatService {
         'lastMessage': message,
         'lastMessageTime': FieldValue.serverTimestamp(),
       });
+
+      // Send push notification to recipient
+      await _sendNotificationToRecipient(
+        chatId: chatId,
+        senderId: senderId,
+        senderName: senderName,
+        message: message,
+      );
     } catch (e) {
       print('Error sending message: $e');
       rethrow;
     }
   }
 
-  // Get messages stream for a chat
+  // Send notification to recipient (FIXED FOR VERCEL BACKEND)
+  Future<void> _sendNotificationToRecipient({
+    required String chatId,
+    required String senderId,
+    required String senderName,
+    required String message,
+  }) async {
+    try {
+      print('📤 Preparing to send notification...');
+
+      // Get chat document
+      final chatDoc = await _firestore
+          .collection(AppConstants.chatsCollection)
+          .doc(chatId)
+          .get();
+
+      if (!chatDoc.exists) {
+        print('❌ Chat document not found');
+        return;
+      }
+
+      final chatData = chatDoc.data() as Map<String, dynamic>;
+      final participants = chatData['participants'] as List<dynamic>;
+
+      // Find recipient ID
+      final recipientId = participants.firstWhere(
+            (id) => id != senderId,
+        orElse: () => null,
+      );
+
+      if (recipientId == null) {
+        print('❌ Recipient not found');
+        return;
+      }
+
+      print('✅ Recipient ID: $recipientId');
+
+      // Send notification using Vercel backend
+      // Backend expects: receiverId, title, body
+      await _notificationService.sendNotification(
+        receiverId: recipientId,  // Changed from recipientToken to receiverId
+        title: senderName,         // Sender's name as title
+        body: message,             // Message as body
+      );
+
+      print('✅ Notification request sent to backend');
+    } catch (e) {
+      print('❌ Error sending notification: $e');
+    }
+  }
+
+  // Get messages stream
   Stream<QuerySnapshot> getMessages(String chatId) {
     return _firestore
         .collection(AppConstants.chatsCollection)
@@ -98,7 +157,7 @@ class ChatService {
         .snapshots();
   }
 
-  // Get all chats for a user
+  // Get user chats
   Stream<QuerySnapshot> getUserChats(String userId) {
     return _firestore
         .collection(AppConstants.chatsCollection)
@@ -118,7 +177,6 @@ class ChatService {
           .where('read', isEqualTo: false)
           .get();
 
-      // Update all unread messages
       final batch = _firestore.batch();
       for (var doc in messages.docs) {
         batch.update(doc.reference, {'read': true});
@@ -126,14 +184,12 @@ class ChatService {
       await batch.commit();
     } catch (e) {
       print('Error marking messages as read: $e');
-      // Don't rethrow - this is not critical
     }
   }
 
-  // Delete a chat (optional - for future use)
+  // Delete chat
   Future<void> deleteChat(String chatId) async {
     try {
-      // Delete all messages first
       final messages = await _firestore
           .collection(AppConstants.chatsCollection)
           .doc(chatId)
@@ -146,7 +202,6 @@ class ChatService {
       }
       await batch.commit();
 
-      // Delete chat document
       await _firestore
           .collection(AppConstants.chatsCollection)
           .doc(chatId)
@@ -157,7 +212,7 @@ class ChatService {
     }
   }
 
-  // Get unread message count for a user in a specific chat
+  // Get unread message count
   Future<int> getUnreadMessageCount(String chatId, String userId) async {
     try {
       final unreadMessages = await _firestore
@@ -172,6 +227,19 @@ class ChatService {
     } catch (e) {
       print('Error getting unread count: $e');
       return 0;
+    }
+  }
+
+  // Save FCM token to user document
+  Future<void> saveFCMToken(String userId, String token) async {
+    try {
+      await _firestore
+          .collection(AppConstants.usersCollection)
+          .doc(userId)
+          .update({'fcmToken': token});
+      print('✅ FCM Token saved to Firestore');
+    } catch (e) {
+      print('❌ Error saving FCM token: $e');
     }
   }
 }

@@ -1,5 +1,7 @@
 import 'package:blooddonation/screens/Emergency/Emergency_hospital.dart';
+import 'package:blooddonation/screens/chat/ChatSCreen.dart';
 import 'package:blooddonation/screens/chat/ChatScreenList.dart';
+import 'package:blooddonation/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -31,6 +33,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
+
+    _initializeNotifications();
     _animationController = AnimationController(
       duration: Duration(milliseconds: 1000),
       vsync: this,
@@ -51,9 +55,56 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.dispose();
   }
 
+  Future<void> _initializeNotifications() async {
+    final notificationService = NotificationService();
+    final chatService = ChatService();
+
+    // Initialize notification service
+    await notificationService.initialize(
+      onNotificationTap: (chatId, otherUserId, otherUserName, otherUserBloodType) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatScreen(
+              otherUserId: otherUserId,
+              otherUserName: otherUserName,
+              otherUserBloodType: otherUserBloodType,
+            ),
+          ),
+        );
+      },
+      onReply: (chatId, message) async {
+        final userData = Provider.of<UserProvider>(context, listen: false).userData;
+        if (userData != null) {
+          await chatService.sendMessage(
+            chatId: chatId,
+            senderId: userData['uid'],
+            senderName: userData['name'],
+            message: message,
+          );
+        }
+      },
+    );
+
+    // Save FCM token directly to Firestore
+    final userData = Provider.of<UserProvider>(context, listen: false).userData;
+    if (userData != null && notificationService.fcmToken != null) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userData['uid'])
+            .update({'fcmToken': notificationService.fcmToken});
+        print('FCM Token saved successfully');
+      } catch (e) {
+        print('Error saving FCM token: $e');
+      }
+    }
+  }
   @override
   Widget build(BuildContext context) {
-    final userData = Provider.of<UserProvider>(context).userData;
+    final userData = Provider
+        .of<UserProvider>(context)
+        .userData;
     final isDonor = userData?['userType'] == 'donor';
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
@@ -73,24 +124,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Builder(
-                        builder: (context) => GestureDetector(
-                          onTap: () => Scaffold.of(context).openDrawer(),
-                          child: Container(
-                            padding: EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: Offset(0, 4),
+                        builder: (context) =>
+                            GestureDetector(
+                              onTap: () => Scaffold.of(context).openDrawer(),
+                              child: Container(
+                                padding: EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                                child: Icon(Icons.menu_rounded, size: 24),
+                              ),
                             ),
-                            child: Icon(Icons.menu_rounded, size: 24),
-                          ),
-                        ),
                       ),
                       Row(
                         children: [
@@ -173,7 +225,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             ),
                           ),
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
                                 colors: isDonor
@@ -183,7 +236,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               borderRadius: BorderRadius.circular(20),
                               boxShadow: [
                                 BoxShadow(
-                                  color: (isDonor ? Color(0xFF00C853) : Color(0xFFFF6F00)).withOpacity(0.3),
+                                  color: (isDonor ? Color(0xFF00C853) : Color(
+                                      0xFFFF6F00)).withOpacity(0.3),
                                   blurRadius: 8,
                                   offset: Offset(0, 4),
                                 ),
@@ -316,7 +370,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white,
-                          border: Border.all(color: Colors.white.withOpacity(0.3), width: 4),
+                          border: Border.all(color: Colors.white.withOpacity(
+                              0.3), width: 4),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.2),
@@ -354,7 +409,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           ),
                           SizedBox(height: 10),
                           Container(
-                            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: EdgeInsets.symmetric(horizontal: 16,
+                                vertical: 8),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(20),
@@ -455,7 +511,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: _buildInfoItem(
                 Icons.cake_rounded,
                 'Age',
-                userData?['age'] != null ? '${userData!['age']} years' : 'Not provided',
+                userData?['age'] != null
+                    ? '${userData!['age']} years'
+                    : 'Not provided',
               ),
             ),
           ],
@@ -514,10 +572,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           'Help people in urgent need',
           Icons.search_rounded,
           LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFF5A52D5)]),
-              () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => BloodRequestsScreen()),
-          ),
+              () =>
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => BloodRequestsScreen()),
+              ),
         ),
         SizedBox(height: 16),
         _buildActionCard(
@@ -526,10 +585,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           'Track your contributions',
           Icons.history_rounded,
           LinearGradient(colors: [Color(0xFF00BFA5), Color(0xFF00A895)]),
-              () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => DonationHistoryScreen()),
-          ),
+              () =>
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => DonationHistoryScreen()),
+              ),
         ),
       ],
     );
@@ -544,10 +604,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           'Connect with available donors',
           Icons.person_search_rounded,
           LinearGradient(colors: [Color(0xFFFF6B6B), Color(0xFFEE5A6F)]),
-              () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => DonorSearchScreen()),
-          ),
+              () =>
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => DonorSearchScreen()),
+              ),
         ),
         SizedBox(height: 16),
         Row(
@@ -558,10 +619,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 'Post Request',
                 Icons.add_circle_rounded,
                 LinearGradient(colors: [Color(0xFFFFB627), Color(0xFFFF9800)]),
-                    () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => PostRequestScreen()),
-                ),
+                    () =>
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => PostRequestScreen()),
+                    ),
               ),
             ),
             SizedBox(width: 16),
@@ -571,10 +633,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 'My Requests',
                 Icons.list_alt_rounded,
                 LinearGradient(colors: [Color(0xFF8E44AD), Color(0xFF7D3C98)]),
-                    () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => MyRequestsScreen()),
-                ),
+                    () =>
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => MyRequestsScreen()),
+                    ),
               ),
             ),
           ],
@@ -583,14 +646,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildActionCard(
-      BuildContext context,
+  Widget _buildActionCard(BuildContext context,
       String title,
       String subtitle,
       IconData icon,
       Gradient gradient,
-      VoidCallback onTap,
-      ) {
+      VoidCallback onTap,) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -640,20 +701,19 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 20),
+            Icon(
+                Icons.arrow_forward_ios_rounded, color: Colors.white, size: 20),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSmallActionCard(
-      BuildContext context,
+  Widget _buildSmallActionCard(BuildContext context,
       String title,
       IconData icon,
       Gradient gradient,
-      VoidCallback onTap,
-      ) {
+      VoidCallback onTap,) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -875,7 +935,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 },
                 backgroundColor: Colors.transparent,
                 elevation: 0,
-                child: Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 28),
+                child: Icon(
+                    Icons.chat_bubble_rounded, color: Colors.white, size: 28),
               ),
               if (chatCount > 0)
                 Positioned(
@@ -917,11 +978,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildModernDrawer(
-      BuildContext context,
+  Widget _buildModernDrawer(BuildContext context,
       Map<String, dynamic>? userData,
-      bool isDonor,
-      ) {
+      bool isDonor,) {
     return Drawer(
       child: Container(
         decoration: BoxDecoration(
@@ -986,7 +1045,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: Colors.white,
-                              border: Border.all(color: Colors.white.withOpacity(0.3), width: 4),
+                              border: Border.all(
+                                  color: Colors.white.withOpacity(0.3),
+                                  width: 4),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.2),
@@ -1019,14 +1080,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           Row(
                             children: [
                               Container(
-                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.25),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.bloodtype_rounded, color: Colors.white, size: 16),
+                                    Icon(Icons.bloodtype_rounded,
+                                        color: Colors.white, size: 16),
                                     SizedBox(width: 6),
                                     Text(
                                       userData?['bloodType'] ?? 'N/A',
@@ -1041,7 +1104,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               ),
                               SizedBox(width: 10),
                               Container(
-                                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.25),
                                   borderRadius: BorderRadius.circular(16),
@@ -1103,7 +1167,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   SnackBar(
                     content: Text('Settings coming soon'),
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                 );
               },
@@ -1117,26 +1182,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 Navigator.pop(context);
                 showDialog(
                   context: context,
-                  builder: (context) => AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    title: Row(
-                      children: [
-                        Icon(Icons.favorite, color: AppTheme.primaryRed),
-                        SizedBox(width: 10),
-                        Text('About', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    content: Text(
-                      'Blood Donation App v1.0\n\nSaving lives, one donation at a time.\n\nDeveloped with ❤️',
-                      style: TextStyle(fontSize: 14, height: 1.5),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text('Close', style: TextStyle(fontWeight: FontWeight.w600)),
+                  builder: (context) =>
+                      AlertDialog(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        title: Row(
+                          children: [
+                            Icon(Icons.favorite, color: AppTheme.primaryRed),
+                            SizedBox(width: 10),
+                            Text('About', style: TextStyle(
+                                fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        content: Text(
+                          'Blood Donation App v1.0\n\nSaving lives, one donation at a time.\n\nDeveloped with ❤️',
+                          style: TextStyle(fontSize: 14, height: 1.5),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text('Close', style: TextStyle(
+                                fontWeight: FontWeight.w600)),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
                 );
               },
             ),
@@ -1149,9 +1218,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Contact support at: support@blooddonation.app'),
+                    content: Text(
+                        'Contact support at: support@blooddonation.app'),
                     behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     duration: Duration(seconds: 3),
                   ),
                 );
@@ -1171,42 +1242,50 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   () {
                 showDialog(
                   context: context,
-                  builder: (context) => AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    title: Row(
-                      children: [
-                        Icon(Icons.logout, color: Colors.red),
-                        SizedBox(width: 10),
-                        Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    content: Text('Are you sure you want to logout?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: Text('Cancel', style: TextStyle(color: AppTheme.textLight)),
-                      ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          Navigator.pop(context);
-                          await _authService.signOut();
-                          Provider.of<UserProvider>(context, listen: false).clearUser();
-                          Navigator.pushAndRemoveUntil(
-                            context,
-                            MaterialPageRoute(builder: (_) => LoginScreen()),
-                                (route) => false,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                  builder: (context) =>
+                      AlertDialog(
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
+                        title: Row(
+                          children: [
+                            Icon(Icons.logout, color: Colors.red),
+                            SizedBox(width: 10),
+                            Text('Logout', style: TextStyle(
+                                fontWeight: FontWeight.bold)),
+                          ],
                         ),
-                        child: Text('Logout', style: TextStyle(color: Colors.white)),
+                        content: Text('Are you sure you want to logout?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text('Cancel', style: TextStyle(
+                                color: AppTheme.textLight)),
+                          ),
+                          ElevatedButton(
+                            onPressed: () async {
+                              Navigator.pop(context);
+                              await _authService.signOut();
+                              Provider
+                                  .of<UserProvider>(context, listen: false)
+                                  .clearUser();
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => LoginScreen()),
+                                    (route) => false,
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text('Logout', style: TextStyle(
+                                color: Colors.white)),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
                 );
               },
             ),
@@ -1217,13 +1296,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildDrawerTile(
-      IconData icon,
+  Widget _buildDrawerTile(IconData icon,
       String title,
       String subtitle,
       Color color,
-      VoidCallback onTap,
-      ) {
+      VoidCallback onTap,) {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: ListTile(
@@ -1261,3 +1338,5 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 }
+// Add this to your HomeScreen's initState method:
+
