@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lottie/lottie.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../providers/user_provider.dart';
 import '../../theme/AppTheme_data.dart';
 import '../home/home_screen.dart';
 import 'Registration.dart';
 import 'dart:async';
-
-// ============================================================================
-// LOGIN SCREEN - WHITE BACKGROUND WITH RED TEXT
-// ============================================================================
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -43,6 +41,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (userData != null) {
         Provider.of<UserProvider>(context, listen: false).setUser(userData);
 
+        // 🔥 CRITICAL: Save FCM token immediately after login
+        await _saveFCMTokenAfterLogin(userCredential.user!.uid);
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => HomeScreen()),
@@ -52,6 +53,47 @@ class _LoginScreenState extends State<LoginScreen> {
       _showError(e.toString());
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  // 🔥 NEW: Save FCM token right after successful login
+  Future<void> _saveFCMTokenAfterLogin(String userId) async {
+    try {
+      print('🔑 [Login] Getting FCM token for user: $userId');
+
+      final messaging = FirebaseMessaging.instance;
+      final token = await messaging.getToken();
+
+      if (token != null) {
+        print('📱 [Login] Token received: ${token.substring(0, 20)}...');
+        print('💾 [Login] Saving to Firestore...');
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .set({
+          'fcmToken': token,
+          'lastTokenUpdate': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        print('✅ [Login] FCM Token saved successfully!');
+
+        // Verify it was saved
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+
+        if (doc.exists && doc.data()?['fcmToken'] != null) {
+          print('✅ [Login] Token verified in Firestore');
+        } else {
+          print('⚠️ [Login] Token not found after save!');
+        }
+      } else {
+        print('⚠️ [Login] No FCM token available');
+      }
+    } catch (e) {
+      print('❌ [Login] Error saving FCM token: $e');
     }
   }
 
@@ -79,7 +121,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo/Lottie Animation
                   SizedBox(
                     height: 200,
                     child: Lottie.asset(
@@ -89,7 +130,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SizedBox(height: 20),
 
-                  // Welcome Text
                   Text(
                     'Welcome Back',
                     textAlign: TextAlign.center,
@@ -111,7 +151,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SizedBox(height: 32),
 
-                  // Email Field
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -145,7 +184,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SizedBox(height: 16),
 
-                  // Password Field
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -191,7 +229,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SizedBox(height: 24),
 
-                  // Login Button
                   _isLoading
                       ? Container(
                     height: 56,
@@ -236,7 +273,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   SizedBox(height: 18),
 
-                  // Sign Up Link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

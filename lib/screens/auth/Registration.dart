@@ -1,4 +1,6 @@
 import 'package:blooddonation/screens/auth/login.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
@@ -25,6 +27,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
+  // Update your _register method in _RegistrationScreenState
+
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -49,12 +53,43 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         age: int.parse(_ageController.text),
       );
 
+      // 🔥 CRITICAL: Save FCM token immediately after registration
+      await _saveFCMToken(userCredential.user!.uid);
+
       _showSuccess('Registration successful!');
       Navigator.pop(context);
     } catch (e) {
       _showError(e.toString());
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+// 🔥 NEW METHOD: Save FCM token after successful registration
+  Future<void> _saveFCMToken(String userId) async {
+    try {
+      final messaging = FirebaseMessaging.instance;
+      final token = await messaging.getToken();
+
+      if (token != null) {
+        print('🔑 Registration - Saving FCM Token for user: $userId');
+        print('📱 Token: $token');
+
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .set({
+          'fcmToken': token,
+          'lastTokenUpdate': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+
+        print('✅ Registration - FCM Token saved successfully');
+      } else {
+        print('⚠️ Registration - No FCM token available');
+      }
+    } catch (e) {
+      print('❌ Registration - Error saving FCM token: $e');
+      // Don't show error to user - this is a background operation
     }
   }
 
